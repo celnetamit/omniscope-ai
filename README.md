@@ -200,4 +200,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Ready to revolutionize your multi-omics research? Get started at https://omini.panoptical.org** 🚀
+**Ready to revolutionize your multi-omics research? Get started at https://omini.panoptical.org** 🚀# omniscope-ai
