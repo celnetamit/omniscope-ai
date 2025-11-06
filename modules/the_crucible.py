@@ -11,6 +11,30 @@ router = APIRouter()
 # In a production environment, this would be replaced with a database
 training_jobs: Dict[str, Dict] = {}
 
+# Memory management - limit the number of stored jobs
+MAX_STORED_JOBS = 50
+
+def cleanup_old_jobs():
+    """Remove old completed/failed jobs if we exceed the maximum limit"""
+    if len(training_jobs) > MAX_STORED_JOBS:
+        # Keep running jobs and recent completed/failed jobs
+        running_jobs = {k: v for k, v in training_jobs.items() if v.get('status') == 'running'}
+        completed_jobs = {k: v for k, v in training_jobs.items() if v.get('status') in ['completed', 'failed']}
+        
+        # If we have too many completed jobs, keep only the most recent ones
+        if len(completed_jobs) > MAX_STORED_JOBS - len(running_jobs):
+            sorted_completed = sorted(
+                completed_jobs.items(),
+                key=lambda x: x[1].get('timestamp', 0),
+                reverse=True
+            )
+            completed_jobs = dict(sorted_completed[:MAX_STORED_JOBS - len(running_jobs)])
+        
+        # Update the storage
+        training_jobs.clear()
+        training_jobs.update(running_jobs)
+        training_jobs.update(completed_jobs)
+
 # Pydantic models for request/response validation
 class TrainingRequest(BaseModel):
     pipeline_id: str
@@ -48,7 +72,8 @@ def simulate_training(job_id: str, total_epochs: int = 10):
             "metrics": {"accuracy": 0.5, "loss": 1.0},
             "explanation": "Training started. The model is currently learning basic patterns from the data.",
             "final_metrics": {},
-            "summary": ""
+            "summary": "",
+            "timestamp": time.time()
         }
         
         # Simulate training epochs
@@ -79,6 +104,7 @@ def simulate_training(job_id: str, total_epochs: int = 10):
         
         # Mark job as completed and set final results
         training_jobs[job_id]["status"] = "completed"
+        training_jobs[job_id]["timestamp"] = time.time()
         training_jobs[job_id]["final_metrics"] = {
             "accuracy": 0.92,
             "auc": 0.95,
@@ -87,10 +113,16 @@ def simulate_training(job_id: str, total_epochs: int = 10):
         }
         training_jobs[job_id]["summary"] = "The XGBoost model achieved high performance on the test set, with an AUC of 0.95, indicating excellent discriminative power."
         
+        # Cleanup old jobs
+        cleanup_old_jobs()
+        
     except Exception as e:
         # Handle any errors during training
         training_jobs[job_id]["status"] = "failed"
+        training_jobs[job_id]["timestamp"] = time.time()
         training_jobs[job_id]["explanation"] = f"Training failed due to an error: {str(e)}"
+        print(f"Training job {job_id} failed: {str(e)}")
+        cleanup_old_jobs()
 
 # Route to start a new training job
 @router.post("/train", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)

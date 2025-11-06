@@ -12,6 +12,23 @@ router = APIRouter()
 # In a production environment, this would be replaced with a proper database
 report_storage: Dict[str, Dict[str, Any]] = {}
 
+# Memory management - limit the number of stored reports
+MAX_STORED_REPORTS = 100
+
+def cleanup_old_reports():
+    """Remove old reports if we exceed the maximum limit"""
+    if len(report_storage) > MAX_STORED_REPORTS:
+        # Keep only the most recent reports
+        sorted_reports = sorted(
+            report_storage.items(),
+            key=lambda x: x[1].get('timestamp', 0),
+            reverse=True
+        )
+        # Keep only the latest MAX_STORED_REPORTS
+        report_storage.clear()
+        for report_id, report_data in sorted_reports[:MAX_STORED_REPORTS]:
+            report_storage[report_id] = report_data
+
 # Constants for file validation
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 ALLOWED_EXTENSIONS = ["csv"]
@@ -50,11 +67,13 @@ def analyze_csv_file(file_id: str, file_content: bytes, filename: str) -> None:
         filename: Original filename
     """
     try:
+        import time
         # Update status to processing
         report_storage[file_id] = {
             "file_id": file_id,
             "status": "processing",
-            "message": "Analysis in progress."
+            "message": "Analysis in progress.",
+            "timestamp": time.time()
         }
         
         # Read the CSV file
@@ -134,6 +153,7 @@ def analyze_csv_file(file_id: str, file_content: bytes, filename: str) -> None:
         report = {
             "file_id": file_id,
             "status": "complete",
+            "timestamp": time.time(),
             "report": {
                 "summary": {
                     "filename": filename,
@@ -148,16 +168,22 @@ def analyze_csv_file(file_id: str, file_content: bytes, filename: str) -> None:
             }
         }
         
-        # Store the report
+        # Store the report and cleanup old ones
         report_storage[file_id] = report
+        cleanup_old_reports()
         
     except Exception as e:
         # Handle any errors during analysis
+        import time
         report_storage[file_id] = {
             "file_id": file_id,
             "status": "error",
-            "message": f"Error during analysis: {str(e)}"
+            "message": f"Error during analysis: {str(e)}",
+            "timestamp": time.time()
         }
+        # Log the error for debugging
+        print(f"Error analyzing file {file_id}: {str(e)}")
+        cleanup_old_reports()
 
 @router.post("/upload")
 async def upload_file(

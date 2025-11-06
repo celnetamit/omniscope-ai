@@ -7,6 +7,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+import os
+import signal
+import sys
 from contextlib import asynccontextmanager
 
 # Import all module routers
@@ -23,6 +26,15 @@ async def lifespan(app: FastAPI):
     print("🔗 The Weaver Module: Ready for pipeline management")
     print("🔥 The Crucible Module: Ready for model training")
     print("💡 The Insight Engine Module: Ready for biomarker analysis")
+    
+    # Setup graceful shutdown handlers
+    def signal_handler(signum, frame):
+        print(f"🛑 Received signal {signum}, shutting down gracefully...")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     yield
     # Shutdown
     print("🛑 OmniScope AI is shutting down...")
@@ -212,6 +224,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8001,
-        reload=True,
+        reload=False,  # Disable reload in production
         log_level="info"
     )
