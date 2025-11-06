@@ -1,0 +1,34 @@
+{
+  "name": "omniscope-backend",
+  "description": "OmniScope AI Backend - FastAPI Multi-Omics Analysis API",
+  "type": "application",
+  "source": {
+    "type": "github",
+    "repository": "celnetamit/omniscope-ai",
+    "branch": "main"
+  },
+  "build": {
+    "dockerfile": "Dockerfile.backend",
+    "context": "."
+  },
+  "deploy": {
+    "port": 8001,
+    "domain": "bepy.panoptical.org",
+    "ssl": true
+  },
+  "environment": {
+    "PYTHONPATH": "/app"
+  },
+  "volumes": [
+    {
+      "source": "/data/omniscope/db",
+      "target": "/app/db"
+    }
+  ],
+  "healthcheck": {
+    "path": "/health",
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3
+  }
+}

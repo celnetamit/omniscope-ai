@@ -1,0 +1,65 @@
+{
+  "basic_genomics": {
+    "name": "Basic Genomics Analysis",
+    "project_id": "genomics_study",
+    "pipeline_json": {
+      "nodes": [
+        {"id": "upload1", "type": "UploadGenomicsData", "position": {"x": 100, "y": 100}},
+        {"id": "normalize1", "type": "NormalizeRNASeq", "position": {"x": 300, "y": 100}},
+        {"id": "qc1", "type": "QCProteomics", "position": {"x": 500, "y": 100}}
+      ],
+      "edges": [
+        {"id": "e1", "source": "upload1", "target": "normalize1"},
+        {"id": "e2", "source": "normalize1", "target": "qc1"}
+      ]
+    }
+  },
+  "multiomics_integration": {
+    "name": "Multi-omics MOFA+ Integration",
+    "project_id": "multiomics_study",
+    "pipeline_json": {
+      "nodes": [
+        {"id": "genomics", "type": "UploadGenomicsData", "position": {"x": 100, "y": 100}},
+        {"id": "proteomics", "type": "UploadProteomicsData", "position": {"x": 100, "y": 200}},
+        {"id": "metabolomics", "type": "UploadMetabolomicsData", "position": {"x": 100, "y": 300}},
+        {"id": "normalize", "type": "NormalizeRNASeq", "position": {"x": 300, "y": 100}},
+        {"id": "integrate", "type": "IntegrateMOFAPlus", "position": {"x": 500, "y": 200}},
+        {"id": "train_xgb", "type": "TrainXGBoostModel", "position": {"x": 700, "y": 150}},
+        {"id": "train_rf", "type": "TrainRandomForestModel", "position": {"x": 700, "y": 250}}
+      ],
+      "edges": [
+        {"id": "e1", "source": "genomics", "target": "normalize"},
+        {"id": "e2", "source": "normalize", "target": "integrate"},
+        {"id": "e3", "source": "proteomics", "target": "integrate"},
+        {"id": "e4", "source": "metabolomics", "target": "integrate"},
+        {"id": "e5", "source": "integrate", "target": "train_xgb"},
+        {"id": "e6", "source": "integrate", "target": "train_rf"}
+      ]
+    }
+  },
+  "cancer_biomarker_discovery": {
+    "name": "Cancer Biomarker Discovery Pipeline",
+    "project_id": "cancer_research",
+    "pipeline_json": {
+      "nodes": [
+        {"id": "clinical", "type": "UploadClinicalData", "position": {"x": 100, "y": 100}},
+        {"id": "genomics", "type": "UploadGenomicsData", "position": {"x": 100, "y": 200}},
+        {"id": "preprocess", "type": "PreprocessClinical", "position": {"x": 300, "y": 100}},
+        {"id": "normalize", "type": "NormalizeRNASeq", "position": {"x": 300, "y": 200}},
+        {"id": "feature_select", "type": "FeatureSelection", "position": {"x": 500, "y": 150}},
+        {"id": "train_model", "type": "TrainXGBoostModel", "position": {"x": 700, "y": 150}},
+        {"id": "validate", "type": "CrossValidation", "position": {"x": 900, "y": 150}},
+        {"id": "visualize", "type": "DataVisualization", "position": {"x": 1100, "y": 150}}
+      ],
+      "edges": [
+        {"id": "e1", "source": "clinical", "target": "preprocess"},
+        {"id": "e2", "source": "genomics", "target": "normalize"},
+        {"id": "e3", "source": "preprocess", "target": "feature_select"},
+        {"id": "e4", "source": "normalize", "target": "feature_select"},
+        {"id": "e5", "source": "feature_select", "target": "train_model"},
+        {"id": "e6", "source": "train_model", "target": "validate"},
+        {"id": "e7", "source": "validate", "target": "visualize"}
+      ]
+    }
+  }
+}

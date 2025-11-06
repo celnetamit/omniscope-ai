@@ -1,0 +1,37 @@
+{
+  "name": "omniscope-frontend",
+  "description": "OmniScope AI Frontend - Multi-Omics Data Analysis Platform",
+  "type": "application",
+  "source": {
+    "type": "github",
+    "repository": "celnetamit/omniscope-ai",
+    "branch": "main"
+  },
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "deploy": {
+    "port": 3000,
+    "domain": "omini.panoptical.org",
+    "ssl": true
+  },
+  "environment": {
+    "NODE_ENV": "production",
+    "NEXTAUTH_URL": "https://omini.panoptical.org",
+    "NEXT_PUBLIC_API_URL": "https://bepy.panoptical.org",
+    "DATABASE_URL": "file:./db/production.db"
+  },
+  "volumes": [
+    {
+      "source": "/data/omniscope/db",
+      "target": "/app/db"
+    }
+  ],
+  "healthcheck": {
+    "path": "/api/health",
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3
+  }
+}

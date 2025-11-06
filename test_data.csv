@@ -1,0 +1,6 @@
+gene_id,sample_1,sample_2,sample_3,condition
+GENE001,2.5,3.1,2.8,control
+GENE002,1.2,1.5,1.3,control
+GENE003,4.2,4.8,4.5,treatment
+GENE004,0.8,0.9,0.7,treatment
+GENE005,3.3,3.7,3.5,control

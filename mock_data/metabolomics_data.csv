@@ -1,0 +1,16 @@
+metabolite_id,metabolite_name,control_1,control_2,control_3,treatment_1,treatment_2,treatment_3,pathway,class
+HMDB0000124,Glucose,5.2,5.1,5.3,7.8,7.9,7.7,Glycolysis,Carbohydrate
+HMDB0000199,Lactate,1.8,1.9,1.7,3.2,3.1,3.3,Glycolysis,Organic_acid
+HMDB0000161,L-Alanine,0.45,0.47,0.44,0.62,0.61,0.63,Amino_acid_metabolism,Amino_acid
+HMDB0000158,L-Tyrosine,0.78,0.79,0.77,0.52,0.51,0.53,Amino_acid_metabolism,Amino_acid
+HMDB0000687,L-Tryptophan,0.34,0.35,0.33,0.21,0.20,0.22,Amino_acid_metabolism,Amino_acid
+HMDB0000148,L-Glutamic_acid,2.1,2.0,2.2,1.4,1.3,1.5,Amino_acid_metabolism,Amino_acid
+HMDB0000517,Citric_acid,1.2,1.1,1.3,0.8,0.7,0.9,TCA_cycle,Organic_acid
+HMDB0000094,Citric_acid,0.95,0.96,0.94,0.67,0.66,0.68,TCA_cycle,Organic_acid
+HMDB0000208,Lactic_acid,1.8,1.9,1.7,3.2,3.1,3.3,Glycolysis,Organic_acid
+HMDB0000243,Pyruvic_acid,0.42,0.41,0.43,0.68,0.67,0.69,Glycolysis,Organic_acid
+HMDB0000167,L-Threonine,0.56,0.57,0.55,0.38,0.37,0.39,Amino_acid_metabolism,Amino_acid
+HMDB0000172,L-Isoleucine,0.89,0.90,0.88,0.61,0.60,0.62,Amino_acid_metabolism,Amino_acid
+HMDB0000696,L-Phenylalanine,0.67,0.68,0.66,0.45,0.44,0.46,Amino_acid_metabolism,Amino_acid
+HMDB0000929,Cholesterol,4.2,4.1,4.3,5.8,5.9,5.7,Lipid_metabolism,Sterol
+HMDB0000673,Palmitic_acid,2.8,2.9,2.7,4.1,4.2,4.0,Lipid_metabolism,Fatty_acid
