@@ -20,6 +20,9 @@ COPY modules/ ./modules/
 # Create directories
 RUN mkdir -p db
 
+# Set environment variable for database
+ENV DATABASE_URL=sqlite:///./db/backend.db
+
 # Expose port
 EXPOSE 8001
 

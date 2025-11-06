@@ -12,6 +12,9 @@ import signal
 import sys
 from contextlib import asynccontextmanager
 
+# Import database initialization
+from backend_db import init_database
+
 # Import all module routers
 from modules.data_harbor import router as data_harbor_router
 from modules.the_weaver import router as the_weaver_router
@@ -22,6 +25,15 @@ from modules.the_insight_engine import router as the_insight_engine_router
 async def lifespan(app: FastAPI):
     # Startup
     print("🚀 OmniScope AI is starting up...")
+    
+    # Initialize database
+    try:
+        init_database()
+        print("🗄️ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        raise
+    
     print("📊 Data Harbor Module: Ready for file uploads and analysis")
     print("🔗 The Weaver Module: Ready for pipeline management")
     print("🔥 The Crucible Module: Ready for model training")
@@ -160,26 +172,26 @@ async def get_module_status():
         "data_harbor": {
             "status": "active",
             "description": "Ready for file uploads and analysis",
-            "storage": "in-memory",
+            "storage": "SQLite database",
             "supported_formats": ["csv"],
             "max_file_size": "10MB"
         },
         "the_weaver": {
             "status": "active",
             "description": "Pipeline management and AI suggestions",
-            "storage": "in-memory",
+            "storage": "SQLite database",
             "features": ["save", "load", "list", "suggest"]
         },
         "the_crucible": {
             "status": "active",
             "description": "Model training with background processing",
-            "storage": "in-memory",
+            "storage": "SQLite database",
             "features": ["train", "status", "results"]
         },
         "the_insight_engine": {
             "status": "active",
             "description": "Biomarker analysis and explanations",
-            "storage": "in-memory",
+            "storage": "SQLite database",
             "features": ["biomarkers", "explain", "query"]
         }
     }

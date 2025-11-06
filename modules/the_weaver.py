@@ -1,8 +1,12 @@
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Set
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+# Import database components
+from backend_db import get_db, WeaverService
 
 # Define Pydantic models for request/response bodies
 class Node(BaseModel):
@@ -54,9 +58,7 @@ class Suggestion(BaseModel):
 class SuggestionResponse(BaseModel):
     suggestions: List[Suggestion]
 
-# In-memory storage for pipelines
-# In a production environment, this would be replaced with a proper database
-pipelines_db: Dict[str, Dict[str, Any]] = {}
+# Database storage is now handled by WeaverService
 
 # AI Co-pilot suggestion logic
 def get_suggestions(pipeline_json: PipelineJSON) -> List[Suggestion]:
@@ -185,7 +187,7 @@ router = APIRouter()
 
 # Define the routes
 @router.post("/save", response_model=SavePipelineResponse)
-async def save_pipeline(request: SavePipelineRequest):
+async def save_pipeline(request: SavePipelineRequest, db: Session = Depends(get_db)):
     """
     Saves a pipeline's structure. If a pipeline_id is provided in the body, it updates the existing pipeline.
     If not, it creates a new one.
@@ -196,15 +198,15 @@ async def save_pipeline(request: SavePipelineRequest):
     # Generate a new pipeline_id if not provided
     pipeline_id = request.pipeline_id or str(uuid.uuid4())
     
-    # Save the pipeline
-    pipelines_db[pipeline_id] = {
-        "pipeline_id": pipeline_id,
-        "project_id": request.project_id,
-        "name": request.name,
-        "pipeline_json": request.pipeline_json.dict(),
-        "created_at": datetime.now().isoformat(),
-        "warnings": warnings
-    }
+    # Save the pipeline to database
+    pipeline = WeaverService.save_pipeline(
+        db=db,
+        pipeline_id=pipeline_id,
+        project_id=request.project_id,
+        name=request.name,
+        pipeline_json=request.pipeline_json.dict(),
+        warnings=warnings
+    )
     
     # Log warnings for debugging
     if warnings:
@@ -219,26 +221,33 @@ async def save_pipeline(request: SavePipelineRequest):
     )
 
 @router.get("/{pipeline_id}", response_model=LoadPipelineResponse)
-async def load_pipeline(pipeline_id: str):
+async def load_pipeline(pipeline_id: str, db: Session = Depends(get_db)):
     """
     Retrieves the full JSON structure of a single saved pipeline.
     """
-    if pipeline_id not in pipelines_db:
+    pipeline = WeaverService.get_pipeline(db, pipeline_id)
+    
+    if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
-    pipeline = pipelines_db[pipeline_id]
-    return LoadPipelineResponse(**pipeline)
+    return LoadPipelineResponse(
+        pipeline_id=pipeline.id,
+        project_id=pipeline.project_id,
+        name=pipeline.name,
+        pipeline_json=PipelineJSON(**pipeline.pipeline_json),
+        created_at=pipeline.created_at.isoformat()
+    )
 
 @router.get("/project/{project_id}/list", response_model=ListPipelinesResponse)
-async def list_pipelines(project_id: str):
+async def list_pipelines(project_id: str, db: Session = Depends(get_db)):
     """
     Returns a list of all pipeline names and IDs associated with a given project.
     """
-    # Filter pipelines by project_id
+    pipelines = WeaverService.list_pipelines(db, project_id)
+    
     project_pipelines = [
-        {"pipeline_id": pipeline_id, "name": pipeline["name"]}
-        for pipeline_id, pipeline in pipelines_db.items()
-        if pipeline["project_id"] == project_id
+        {"pipeline_id": pipeline.id, "name": pipeline.name}
+        for pipeline in pipelines
     ]
     
     return ListPipelinesResponse(pipelines=project_pipelines)

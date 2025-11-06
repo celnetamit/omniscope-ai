@@ -1,8 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import random
 import re
+from sqlalchemy.orm import Session
+
+# Import database components
+from backend_db import get_db, InsightEngineService
 
 # Create the router
 router = APIRouter()
@@ -105,36 +109,64 @@ def generate_mock_biomarkers():
     biomarkers.sort(key=lambda x: x.importance_score, reverse=True)
     return biomarkers
 
-# In-memory storage for mock results
-# In a real application, this would be replaced with a database
-mock_results = {
-    "model_001": generate_mock_biomarkers(),
-    "model_002": generate_mock_biomarkers()  # Different set for second model
-}
+# Database storage is now handled by InsightEngineService
+# Initialize some default biomarkers for demo purposes
+def ensure_demo_biomarkers(db: Session, model_id: str):
+    """Ensure demo biomarkers exist for a model"""
+    existing_biomarkers = InsightEngineService.get_biomarkers(db, model_id)
+    if not existing_biomarkers:
+        # Generate and save demo biomarkers
+        demo_biomarkers = []
+        mock_biomarkers = generate_mock_biomarkers()
+        for biomarker in mock_biomarkers:
+            demo_biomarkers.append({
+                "gene_id": biomarker.gene_id,
+                "gene_name": biomarker.gene_name,
+                "type": biomarker.type,
+                "importance_score": biomarker.importance_score,
+                "p_value": biomarker.p_value,
+                "external_links": biomarker.external_links
+            })
+        InsightEngineService.save_biomarkers(db, model_id, demo_biomarkers)
 
 # API Routes
 
 @router.get("/{model_id}/biomarkers", response_model=BiomarkerList)
-async def get_biomarkers(model_id: str):
+async def get_biomarkers(model_id: str, db: Session = Depends(get_db)):
     """Retrieve the full list of identified biomarkers for a given completed model.
     
     Args:
         model_id: The ID of the model to retrieve biomarkers for.
+        db: Database session
         
     Returns:
         BiomarkerList: A list of biomarkers for the specified model.
     """
-    if model_id not in mock_results:
-        # Create a new model if it doesn't exist
-        mock_results[model_id] = generate_mock_biomarkers()
+    # Ensure demo biomarkers exist
+    ensure_demo_biomarkers(db, model_id)
+    
+    # Get biomarkers from database
+    biomarker_records = InsightEngineService.get_biomarkers(db, model_id)
+    
+    # Convert to Pydantic models
+    biomarkers = []
+    for record in biomarker_records:
+        biomarkers.append(Biomarker(
+            gene_id=record.gene_id,
+            gene_name=record.gene_name,
+            type=record.biomarker_type,
+            importance_score=record.importance_score,
+            p_value=record.p_value,
+            external_links=record.external_links
+        ))
     
     return BiomarkerList(
         model_id=model_id,
-        biomarkers=mock_results[model_id]
+        biomarkers=biomarkers
     )
 
 @router.get("/{model_id}/biomarkers/{gene_id}/explain", response_model=Explanation)
-async def explain_biomarker(model_id: str, gene_id: str):
+async def explain_biomarker(model_id: str, gene_id: str, db: Session = Depends(get_db)):
     """Provide a detailed, educational explanation for a specific biomarker.
     
     This endpoint implements the "Socratic Tutor" feature, providing not just
@@ -144,22 +176,26 @@ async def explain_biomarker(model_id: str, gene_id: str):
     Args:
         model_id: The ID of the model.
         gene_id: The ID of the gene/biomarker to explain.
+        db: Database session
         
     Returns:
         Explanation: Detailed information about the biomarker.
     """
-    if model_id not in mock_results:
-        # Create a new model if it doesn't exist
-        mock_results[model_id] = generate_mock_biomarkers()
+    # Ensure demo biomarkers exist
+    ensure_demo_biomarkers(db, model_id)
     
-    # Find the biomarker
-    biomarker = None
-    for b in mock_results[model_id]:
-        if b.gene_id == gene_id or b.gene_name == gene_id:
-            biomarker = b
-            break
+    # Find the biomarker in database
+    biomarker_record = InsightEngineService.get_biomarker(db, model_id, gene_id)
     
-    if not biomarker:
+    # If not found by gene_id, try to find by gene_name
+    if not biomarker_record:
+        biomarkers = InsightEngineService.get_biomarkers(db, model_id)
+        for b in biomarkers:
+            if b.gene_name == gene_id:
+                biomarker_record = b
+                break
+    
+    if not biomarker_record:
         # Return a default explanation if biomarker not found
         return Explanation(
             gene_id=gene_id,
@@ -171,60 +207,60 @@ async def explain_biomarker(model_id: str, gene_id: str):
         )
     
     # Generate explanation based on biomarker type
-    if biomarker.type == "gene":
-        importance_percentage = int(biomarker.importance_score * 100)
-        explanation = f"{biomarker.gene_name} is a top biomarker because its expression pattern consistently correlates with the sample classifications across {importance_percentage}% of the model's decision paths. It acts as a strong signal for the model's classification."
+    if biomarker_record.biomarker_type == "gene":
+        importance_percentage = int(biomarker_record.importance_score * 100)
+        explanation = f"{biomarker_record.gene_name} is a top biomarker because its expression pattern consistently correlates with the sample classifications across {importance_percentage}% of the model's decision paths. It acts as a strong signal for the model's classification."
         
         # Generate socratic question based on gene function
-        if biomarker.gene_name in ["TP53", "BRCA1", "BRCA2"]:
+        if biomarker_record.gene_name in ["TP53", "BRCA1", "BRCA2"]:
             socratic_question = f"This gene is a well-known tumor suppressor. Do you think its altered expression in your data is a cause or an effect of the disease state?"
             related_concepts = ["Tumor Suppression", "DNA Repair", "Cell Cycle Arrest"]
-        elif biomarker.gene_name in ["EGFR", "ALK", "KRAS", "BRAF"]:
+        elif biomarker_record.gene_name in ["EGFR", "ALK", "KRAS", "BRAF"]:
             socratic_question = f"This gene is often involved in cell signaling pathways. How might its dysregulation contribute to disease progression?"
             related_concepts = ["Cell Signaling", "Oncogenes", "Targeted Therapy"]
         else:
             socratic_question = f"This gene shows significant importance in the model. What biological processes might it be regulating in this context?"
             related_concepts = ["Gene Regulation", "Cellular Processes", "Molecular Pathways"]
         
-        learn_more_link = f"https://example.com/learn/{biomarker.gene_name.lower()}-pathway"
+        learn_more_link = f"https://example.com/learn/{biomarker_record.gene_name.lower()}-pathway"
     
-    elif biomarker.type == "protein":
-        importance_percentage = int(biomarker.importance_score * 100)
-        explanation = f"The {biomarker.gene_name} protein is a significant biomarker as its abundance levels distinguish between sample groups in {importance_percentage}% of classification decisions. This suggests it may play a key role in the underlying biology."
+    elif biomarker_record.biomarker_type == "protein":
+        importance_percentage = int(biomarker_record.importance_score * 100)
+        explanation = f"The {biomarker_record.gene_name} protein is a significant biomarker as its abundance levels distinguish between sample groups in {importance_percentage}% of classification decisions. This suggests it may play a key role in the underlying biology."
         
         # Generate socratic question based on protein function
-        if biomarker.gene_name == "p53":
+        if biomarker_record.gene_name == "p53":
             socratic_question = "The p53 protein is often called 'the guardian of the genome'. What cellular processes does it regulate to maintain genomic stability?"
             related_concepts = ["Genomic Stability", "Apoptosis", "DNA Repair"]
-        elif biomarker.gene_name == "EGFR":
+        elif biomarker_record.gene_name == "EGFR":
             socratic_question = "EGFR is a receptor tyrosine kinase. How might changes in its activity affect downstream signaling pathways?"
             related_concepts = ["Receptor Tyrosine Kinases", "Signal Transduction", "Cell Proliferation"]
         else:
             socratic_question = f"This protein shows significant importance in the model. What might be the functional consequences of its altered abundance?"
             related_concepts = ["Protein Function", "Cellular Processes", "Molecular Interactions"]
         
-        learn_more_link = f"https://example.com/learn/{biomarker.gene_name.lower()}-function"
+        learn_more_link = f"https://example.com/learn/{biomarker_record.gene_name.lower()}-function"
     
     else:  # metabolite
-        importance_percentage = int(biomarker.importance_score * 100)
-        explanation = f"The metabolite {biomarker.gene_name} is a key biomarker as its concentration differs significantly between sample groups, influencing {importance_percentage}% of the model's classification decisions. This suggests a metabolic shift in the condition being studied."
+        importance_percentage = int(biomarker_record.importance_score * 100)
+        explanation = f"The metabolite {biomarker_record.gene_name} is a key biomarker as its concentration differs significantly between sample groups, influencing {importance_percentage}% of the model's classification decisions. This suggests a metabolic shift in the condition being studied."
         
         # Generate socratic question based on metabolite function
-        if biomarker.gene_name == "Glucose":
+        if biomarker_record.gene_name == "Glucose":
             socratic_question = "Glucose is a primary energy source. How might changes in glucose metabolism reflect the metabolic state of the cells in your samples?"
             related_concepts = ["Glycolysis", "Energy Metabolism", "Warburg Effect"]
-        elif biomarker.gene_name == "Lactate":
+        elif biomarker_record.gene_name == "Lactate":
             socratic_question = "Lactate production is often associated with anaerobic metabolism. What might elevated lactate levels suggest about the cellular environment?"
             related_concepts = ["Anaerobic Metabolism", "Lactic Acid Fermentation", "Cellular Hypoxia"]
         else:
             socratic_question = f"This metabolite shows significant importance in the model. What metabolic pathways might it be involved in?"
             related_concepts = ["Metabolic Pathways", "Biochemical Reactions", "Cellular Metabolism"]
         
-        learn_more_link = f"https://example.com/learn/{biomarker.gene_name.lower()}-metabolism"
+        learn_more_link = f"https://example.com/learn/{biomarker_record.gene_name.lower()}-metabolism"
     
     return Explanation(
-        gene_id=biomarker.gene_id,
-        gene_name=biomarker.gene_name,
+        gene_id=biomarker_record.gene_id,
+        gene_name=biomarker_record.gene_name,
         explanation=explanation,
         socratic_question=socratic_question,
         related_concepts=related_concepts,
@@ -232,7 +268,7 @@ async def explain_biomarker(model_id: str, gene_id: str):
     )
 
 @router.post("/{model_id}/query", response_model=QueryResponse)
-async def query_results(model_id: str, request: QueryRequest):
+async def query_results(model_id: str, request: QueryRequest, db: Session = Depends(get_db)):
     """Accept a natural language question and return an answer based on the model's results.
     
     This endpoint implements a simple, rule-based query engine using keyword matching.
@@ -241,16 +277,30 @@ async def query_results(model_id: str, request: QueryRequest):
     Args:
         model_id: The ID of the model to query.
         request: The query request containing the natural language question.
+        db: Database session
         
     Returns:
         QueryResponse: The response to the query, including relevant data.
     """
-    if model_id not in mock_results:
-        # Create a new model if it doesn't exist
-        mock_results[model_id] = generate_mock_biomarkers()
+    # Ensure demo biomarkers exist
+    ensure_demo_biomarkers(db, model_id)
     
     query = request.query.lower()
-    biomarkers = mock_results[model_id]
+    
+    # Get biomarkers from database
+    biomarker_records = InsightEngineService.get_biomarkers(db, model_id)
+    
+    # Convert to the format expected by the query logic
+    biomarkers = []
+    for record in biomarker_records:
+        biomarkers.append(Biomarker(
+            gene_id=record.gene_id,
+            gene_name=record.gene_name,
+            type=record.biomarker_type,
+            importance_score=record.importance_score,
+            p_value=record.p_value,
+            external_links=record.external_links
+        ))
     
     # Rule 1: Check for "top" or number in query
     top_match = re.search(r'top (\d+)', query)
@@ -324,6 +374,9 @@ async def query_results(model_id: str, request: QueryRequest):
     data = [{"gene_name": b.gene_name, "importance_score": b.importance_score} for b in top_biomarkers]
     
     response = "I'm not sure how to answer that, but you can start by exploring the top biomarkers in the list."
+    
+    # Log the query for analytics
+    InsightEngineService.log_query(db, model_id, request.query, response, data)
     
     return QueryResponse(
         query=request.query,

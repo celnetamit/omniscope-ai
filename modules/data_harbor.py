@@ -2,32 +2,15 @@ import io
 import uuid
 from typing import Dict, Any, Optional, List
 import pandas as pd
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Form, Depends
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+# Import database components
+from backend_db import get_db, DataHarborService
 
 # Create the FastAPI router
 router = APIRouter()
-
-# In-memory storage for file analysis reports
-# In a production environment, this would be replaced with a proper database
-report_storage: Dict[str, Dict[str, Any]] = {}
-
-# Memory management - limit the number of stored reports
-MAX_STORED_REPORTS = 100
-
-def cleanup_old_reports():
-    """Remove old reports if we exceed the maximum limit"""
-    if len(report_storage) > MAX_STORED_REPORTS:
-        # Keep only the most recent reports
-        sorted_reports = sorted(
-            report_storage.items(),
-            key=lambda x: x[1].get('timestamp', 0),
-            reverse=True
-        )
-        # Keep only the latest MAX_STORED_REPORTS
-        report_storage.clear()
-        for report_id, report_data in sorted_reports[:MAX_STORED_REPORTS]:
-            report_storage[report_id] = report_data
 
 # Constants for file validation
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
@@ -66,15 +49,18 @@ def analyze_csv_file(file_id: str, file_content: bytes, filename: str) -> None:
         file_content: The content of the uploaded file
         filename: Original filename
     """
+    from backend_db import get_db_session, close_db_session
+    
+    db = get_db_session()
     try:
-        import time
         # Update status to processing
-        report_storage[file_id] = {
-            "file_id": file_id,
-            "status": "processing",
-            "message": "Analysis in progress.",
-            "timestamp": time.time()
-        }
+        DataHarborService.create_report(
+            db=db,
+            file_id=file_id,
+            filename=filename,
+            status="processing",
+            message="Analysis in progress."
+        )
         
         # Read the CSV file
         df = pd.read_csv(io.BytesIO(file_content))
@@ -149,41 +135,44 @@ def analyze_csv_file(file_id: str, file_content: bytes, filename: str) -> None:
                 "learn_more_link": "https://example.com/learn/handling-duplicates"
             })
         
-        # Create the final report
-        report = {
-            "file_id": file_id,
-            "status": "complete",
-            "timestamp": time.time(),
-            "report": {
-                "summary": {
-                    "filename": filename,
-                    "rows": int(rows),  # Convert to native int
-                    "columns": int(columns),  # Convert to native int
-                    "duplicates": duplicates
-                },
-                "findings": findings,
-                "recommendations": recommendations,
-                "data_types": data_types,
-                "missing_values": missing_values
-            }
+        # Create the final report data
+        report_data = {
+            "summary": {
+                "filename": filename,
+                "rows": int(rows),  # Convert to native int
+                "columns": int(columns),  # Convert to native int
+                "duplicates": duplicates
+            },
+            "findings": findings,
+            "recommendations": recommendations,
+            "data_types": data_types,
+            "missing_values": missing_values
         }
         
-        # Store the report and cleanup old ones
-        report_storage[file_id] = report
-        cleanup_old_reports()
+        # Update the report in database
+        DataHarborService.update_report(
+            db=db,
+            file_id=file_id,
+            status="complete",
+            report_data=report_data
+        )
+        
+        # Cleanup old reports
+        DataHarborService.cleanup_old_reports(db, max_reports=100)
         
     except Exception as e:
         # Handle any errors during analysis
-        import time
-        report_storage[file_id] = {
-            "file_id": file_id,
-            "status": "error",
-            "message": f"Error during analysis: {str(e)}",
-            "timestamp": time.time()
-        }
+        DataHarborService.update_report(
+            db=db,
+            file_id=file_id,
+            status="error",
+            message=f"Error during analysis: {str(e)}"
+        )
         # Log the error for debugging
         print(f"Error analyzing file {file_id}: {str(e)}")
-        cleanup_old_reports()
+        DataHarborService.cleanup_old_reports(db, max_reports=100)
+    finally:
+        close_db_session(db)
 
 @router.post("/upload")
 async def upload_file(
@@ -229,22 +218,35 @@ async def upload_file(
     }
 
 @router.get("/{file_id}/report")
-async def get_report(file_id: str) -> Dict[str, Any]:
+async def get_report(file_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Retrieve the analysis report for a file.
     
     Args:
         file_id: The unique identifier for the file
+        db: Database session
         
     Returns:
         The analysis report or status
     """
-    # Check if the file_id exists
-    if file_id not in report_storage:
+    # Get the report from database
+    report = DataHarborService.get_report(db, file_id)
+    
+    if not report:
         raise HTTPException(
             status_code=404,
             detail="File ID not found."
         )
     
-    # Return the report or status
-    return report_storage[file_id]
+    # Format the response to match the expected structure
+    response = {
+        "file_id": report.id,
+        "status": report.status,
+        "message": report.message
+    }
+    
+    # Add report data if analysis is complete
+    if report.status == "complete" and report.report_data:
+        response["report"] = report.report_data
+    
+    return response

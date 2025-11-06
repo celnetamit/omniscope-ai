@@ -1,39 +1,15 @@
 import uuid
 import time
 from typing import Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+# Import database components
+from backend_db import get_db, CrucibleService, get_db_session, close_db_session
 
 # Initialize the router
 router = APIRouter()
-
-# In-memory storage for training jobs
-# In a production environment, this would be replaced with a database
-training_jobs: Dict[str, Dict] = {}
-
-# Memory management - limit the number of stored jobs
-MAX_STORED_JOBS = 50
-
-def cleanup_old_jobs():
-    """Remove old completed/failed jobs if we exceed the maximum limit"""
-    if len(training_jobs) > MAX_STORED_JOBS:
-        # Keep running jobs and recent completed/failed jobs
-        running_jobs = {k: v for k, v in training_jobs.items() if v.get('status') == 'running'}
-        completed_jobs = {k: v for k, v in training_jobs.items() if v.get('status') in ['completed', 'failed']}
-        
-        # If we have too many completed jobs, keep only the most recent ones
-        if len(completed_jobs) > MAX_STORED_JOBS - len(running_jobs):
-            sorted_completed = sorted(
-                completed_jobs.items(),
-                key=lambda x: x[1].get('timestamp', 0),
-                reverse=True
-            )
-            completed_jobs = dict(sorted_completed[:MAX_STORED_JOBS - len(running_jobs)])
-        
-        # Update the storage
-        training_jobs.clear()
-        training_jobs.update(running_jobs)
-        training_jobs.update(completed_jobs)
 
 # Pydantic models for request/response validation
 class TrainingRequest(BaseModel):
@@ -59,22 +35,20 @@ class JobResponse(BaseModel):
     message: str
 
 # Background task to simulate model training
-def simulate_training(job_id: str, total_epochs: int = 10):
+def simulate_training(job_id: str, pipeline_id: str, data_ids: List[str], total_epochs: int = 10):
     """
     Simulates a long-running model training process.
-    Updates the job status in the in-memory store with progress and metrics.
+    Updates the job status in the database with progress and metrics.
     """
+    db = get_db_session()
     try:
-        # Initialize job state
-        training_jobs[job_id] = {
-            "status": "running",
-            "progress": {"current_epoch": 0, "total_epochs": total_epochs},
-            "metrics": {"accuracy": 0.5, "loss": 1.0},
-            "explanation": "Training started. The model is currently learning basic patterns from the data.",
-            "final_metrics": {},
-            "summary": "",
-            "timestamp": time.time()
-        }
+        # Create initial job in database
+        CrucibleService.create_training_job(
+            db=db,
+            job_id=job_id,
+            pipeline_id=pipeline_id,
+            data_ids=data_ids
+        )
         
         # Simulate training epochs
         for epoch in range(1, total_epochs + 1):
@@ -82,47 +56,67 @@ def simulate_training(job_id: str, total_epochs: int = 10):
             time.sleep(1)
             
             # Update progress
-            training_jobs[job_id]["progress"]["current_epoch"] = epoch
+            progress = {"current_epoch": epoch, "total_epochs": total_epochs}
             
             # Simulate improving metrics
             accuracy = 0.5 + (0.45 * (epoch / total_epochs))
             loss = 1.0 - (0.8 * (epoch / total_epochs))
-            training_jobs[job_id]["metrics"] = {
+            metrics = {
                 "accuracy": round(accuracy, 2),
                 "loss": round(loss, 2)
             }
             
             # Update explanation based on current epoch
             if epoch <= 2:
-                training_jobs[job_id]["explanation"] = "Training started. The model is currently learning basic patterns from the data."
+                explanation = "Training started. The model is currently learning basic patterns from the data."
             elif 3 <= epoch <= 7:
-                training_jobs[job_id]["explanation"] = "Accuracy is improving. The model is now refining its decision boundaries to reduce errors."
+                explanation = "Accuracy is improving. The model is now refining its decision boundaries to reduce errors."
             elif 8 <= epoch <= 9:
-                training_jobs[job_id]["explanation"] = "Performance is plateauing. The model is converging on a final solution."
+                explanation = "Performance is plateauing. The model is converging on a final solution."
             else:
-                training_jobs[job_id]["explanation"] = "Training complete. The model has finished learning and is ready for evaluation."
+                explanation = "Training complete. The model has finished learning and is ready for evaluation."
+            
+            # Update job in database
+            CrucibleService.update_training_job(
+                db=db,
+                job_id=job_id,
+                progress=progress,
+                metrics=metrics,
+                explanation=explanation
+            )
         
         # Mark job as completed and set final results
-        training_jobs[job_id]["status"] = "completed"
-        training_jobs[job_id]["timestamp"] = time.time()
-        training_jobs[job_id]["final_metrics"] = {
+        final_metrics = {
             "accuracy": 0.92,
             "auc": 0.95,
             "precision": 0.91,
             "recall": 0.93
         }
-        training_jobs[job_id]["summary"] = "The XGBoost model achieved high performance on the test set, with an AUC of 0.95, indicating excellent discriminative power."
+        summary = "The XGBoost model achieved high performance on the test set, with an AUC of 0.95, indicating excellent discriminative power."
+        
+        CrucibleService.update_training_job(
+            db=db,
+            job_id=job_id,
+            status="completed",
+            final_metrics=final_metrics,
+            summary=summary
+        )
         
         # Cleanup old jobs
-        cleanup_old_jobs()
+        CrucibleService.cleanup_old_jobs(db, max_jobs=50)
         
     except Exception as e:
         # Handle any errors during training
-        training_jobs[job_id]["status"] = "failed"
-        training_jobs[job_id]["timestamp"] = time.time()
-        training_jobs[job_id]["explanation"] = f"Training failed due to an error: {str(e)}"
+        CrucibleService.update_training_job(
+            db=db,
+            job_id=job_id,
+            status="failed",
+            explanation=f"Training failed due to an error: {str(e)}"
+        )
         print(f"Training job {job_id} failed: {str(e)}")
-        cleanup_old_jobs()
+        CrucibleService.cleanup_old_jobs(db, max_jobs=50)
+    finally:
+        close_db_session(db)
 
 # Route to start a new training job
 @router.post("/train", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -135,7 +129,7 @@ async def start_training_job(request: TrainingRequest, background_tasks: Backgro
     job_id = str(uuid.uuid4())
     
     # Add the training simulation to background tasks
-    background_tasks.add_task(simulate_training, job_id)
+    background_tasks.add_task(simulate_training, job_id, request.pipeline_id, request.data_ids)
     
     # Return the job ID and initial status
     return JobResponse(
@@ -146,54 +140,56 @@ async def start_training_job(request: TrainingRequest, background_tasks: Backgro
 
 # Route to get job status
 @router.get("/{job_id}/status", response_model=JobStatus)
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str, db: Session = Depends(get_db)):
     """
     Retrieves the real-time status and progress of a training job.
     This endpoint will be polled by the frontend to update the live visualization.
     """
-    # Check if job exists
-    if job_id not in training_jobs:
+    # Get job from database
+    job = CrucibleService.get_training_job(db, job_id)
+    
+    if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job with ID {job_id} not found."
         )
     
     # Return job status
-    job_data = training_jobs[job_id]
     return JobStatus(
         job_id=job_id,
-        status=job_data["status"],
-        progress=job_data["progress"],
-        metrics=job_data["metrics"],
-        explanation=job_data["explanation"]
+        status=job.status,
+        progress=job.progress,
+        metrics=job.metrics,
+        explanation=job.explanation
     )
 
 # Route to get final job results
 @router.get("/{job_id}/results", response_model=JobResults)
-async def get_job_results(job_id: str):
+async def get_job_results(job_id: str, db: Session = Depends(get_db)):
     """
     Retrieves the final, complete results of a training job.
     This endpoint should only be used after the job status is 'completed'.
     """
-    # Check if job exists
-    if job_id not in training_jobs:
+    # Get job from database
+    job = CrucibleService.get_training_job(db, job_id)
+    
+    if not job:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job with ID {job_id} not found."
         )
     
     # Check if job is completed
-    job_data = training_jobs[job_id]
-    if job_data["status"] != "completed":
+    if job.status != "completed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Job with ID {job_id} is not completed yet. Current status: {job_data['status']}"
+            detail=f"Job with ID {job_id} is not completed yet. Current status: {job.status}"
         )
     
     # Return job results
     return JobResults(
         job_id=job_id,
-        status=job_data["status"],
-        final_metrics=job_data["final_metrics"],
-        summary=job_data["summary"]
+        status=job.status,
+        final_metrics=job.final_metrics,
+        summary=job.summary
     )
