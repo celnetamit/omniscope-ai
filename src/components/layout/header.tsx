@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sidebar } from './sidebar';
+import { useAuth } from '@/components/auth/auth-provider';
+import { LoginDialog } from '@/components/auth/login-dialog';
+import { ProfileDialog } from '@/components/profile/profile-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +23,8 @@ import {
   LogOut,
   Wifi,
   WifiOff,
-  Activity
+  Activity,
+  LogIn
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -34,12 +39,15 @@ interface SystemStatus {
 }
 
 export function Header({ activeTab, onTabChange }: HeaderProps) {
+  const { user, logout } = useAuth();
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     frontend: true,
     backend: false,
     lastCheck: new Date()
   });
   const [notifications, setNotifications] = useState(3);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
 
   // Check system status
   useEffect(() => {
@@ -86,7 +94,12 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
           <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
           <div className="hidden lg:block">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">OmniScope AI</span>
+              <button 
+                onClick={() => onTabChange('dashboard')}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                OmniScope AI
+              </button>
               <span className="text-sm text-muted-foreground">/</span>
               <span className="text-sm font-medium capitalize">
                 {activeTab.replace('-', ' ')}
@@ -160,32 +173,59 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
           </DropdownMenu>
 
           {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onTabChange('settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onTabChange('help')}>
-                <Bell className="mr-2 h-4 w-4" />
-                Help & Support
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>
+                      {user.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowProfileDialog(true)}>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onTabChange('settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onTabChange('help')}>
+                  <Bell className="mr-2 h-4 w-4" />
+                  Help & Support
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button onClick={() => setShowLoginDialog(true)} size="sm">
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign In
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Dialogs */}
+      <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
+      <ProfileDialog open={showProfileDialog} onOpenChange={setShowProfileDialog} />
     </header>
   );
 }

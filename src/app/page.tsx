@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AuthProvider } from '@/components/auth/auth-provider';
 import { Header } from '@/components/layout/header';
 import { HelpCenter } from '@/components/help/help-center';
 import { DataExplorer } from '@/components/data-explorer/data-explorer';
@@ -9,27 +10,16 @@ import { DataHarbor } from '@/components/modules/data-harbor';
 import { TheWeaver } from '@/components/modules/the-weaver';
 import { TheCrucible } from '@/components/modules/the-crucible';
 import { InsightEngine } from '@/components/modules/insight-engine';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EnhancedDashboard } from '@/components/dashboard/enhanced-dashboard';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loading } from '@/components/ui/loading';
 import { 
-  Upload, 
-  GitBranch, 
-  Cpu, 
-  Brain, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle,
   FileText,
   BarChart3,
-  MessageSquare,
-  TrendingUp,
-  Activity,
-  Users,
-  Database
+  Cpu,
+  CheckCircle,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 
 interface ModuleInfo {
@@ -216,190 +206,52 @@ export default function Home() {
     );
   };
 
-  // Dashboard Component
-  const DashboardContent = () => (
-    <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold">Welcome to OmniScope AI</h1>
-        <p className="text-xl text-muted-foreground">
-          Multi-Omics Data Analysis Platform
-        </p>
-      </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Datasets</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">
-              +2 from yesterday
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Running Jobs</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">
-              2 training, 1 analysis
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Accuracy</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">94.2%</div>
-            <p className="text-xs text-muted-foreground">
-              +2.1% from last week
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">
-              +1 from last month
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Module Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cpu className="h-5 w-5" />
-            Module Status
-          </CardTitle>
-          <CardDescription>
-            Real-time status of all integrated modules
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {moduleStatus && Object.entries(moduleStatus).map(([module, info]) => (
-              <div key={module} className="flex items-center gap-2 p-3 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                   onClick={() => {
-                     const moduleMap: Record<string, string> = {
-                       'data_harbor': 'data-harbor',
-                       'the_weaver': 'the-weaver', 
-                       'the_crucible': 'the-crucible',
-                       'the_insight_engine': 'insight-engine'
-                     };
-                     setActiveTab(moduleMap[module] || module);
-                   }}>
-                {getStatusIcon(info.status)}
-                <div>
-                  <p className="font-medium capitalize">
-                    {module.replace('_', ' ')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{info.status}</p>
-                  <p className="text-xs text-muted-foreground">{info.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>
-            Latest updates across all modules
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Training job completed successfully</p>
-                <p className="text-xs text-muted-foreground">Cancer Classification Model achieved 95% accuracy</p>
-              </div>
-              <span className="text-xs text-muted-foreground">2 min ago</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">New dataset uploaded</p>
-                <p className="text-xs text-muted-foreground">genomics_expression.csv processed and analyzed</p>
-              </div>
-              <span className="text-xs text-muted-foreground">15 min ago</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-2 h-2 rounded-full bg-purple-500" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Pipeline created</p>
-                <p className="text-xs text-muted-foreground">Multi-omics Integration pipeline saved to project</p>
-              </div>
-              <span className="text-xs text-muted-foreground">1 hour ago</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Cpu className="h-12 w-12 animate-spin mx-auto mb-4" />
-          <p>Loading OmniScope AI...</p>
+      <AuthProvider>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loading message="Loading OmniScope AI..." />
         </div>
-      </div>
+      </AuthProvider>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header activeTab={activeTab} onTabChange={setActiveTab} />
-      
-      <div className="lg:pl-72">
-        <main className="p-6">
-          {activeTab === 'dashboard' && <DashboardContent />}
-          {activeTab === 'help' && <HelpCenter />}
-          {activeTab === 'data-explorer' && <DataExplorer />}
-          {activeTab === 'settings' && <Settings />}
-          {activeTab === 'reports' && (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-2xl font-bold mb-2">Reports Module</h2>
-              <p className="text-muted-foreground">Coming soon - Generate and export analysis reports</p>
-            </div>
-          )}
-          {activeTab === 'analytics' && (
-            <div className="text-center py-12">
-              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-2xl font-bold mb-2">Analytics Module</h2>
-              <p className="text-muted-foreground">Coming soon - Advanced analytics and insights</p>
-            </div>
-          )}
-          
-          {/* Functional Modules */}
-          {activeTab === 'data-harbor' && <DataHarbor />}
-          {activeTab === 'the-weaver' && <TheWeaver />}
-          {activeTab === 'the-crucible' && <TheCrucible />}
-          {activeTab === 'insight-engine' && <InsightEngine />}
-        </main>
+    <AuthProvider>
+      <div className="min-h-screen bg-background">
+        <Header activeTab={activeTab} onTabChange={setActiveTab} />
+        
+        <div className="lg:pl-72">
+          <main className="p-6">
+            {activeTab === 'dashboard' && <EnhancedDashboard moduleStatus={moduleStatus} onTabChange={setActiveTab} />}
+            {activeTab === 'help' && <HelpCenter />}
+            {activeTab === 'data-explorer' && <DataExplorer />}
+            {activeTab === 'settings' && <Settings />}
+            {activeTab === 'reports' && (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h2 className="text-2xl font-bold mb-2">Reports Module</h2>
+                <p className="text-muted-foreground">Coming soon - Generate and export analysis reports</p>
+              </div>
+            )}
+            {activeTab === 'analytics' && (
+              <div className="text-center py-12">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h2 className="text-2xl font-bold mb-2">Analytics Module</h2>
+                <p className="text-muted-foreground">Coming soon - Advanced analytics and insights</p>
+              </div>
+            )}
+            
+            {/* Functional Modules */}
+            {activeTab === 'data-harbor' && <DataHarbor />}
+            {activeTab === 'the-weaver' && <TheWeaver />}
+            {activeTab === 'the-crucible' && <TheCrucible />}
+            {activeTab === 'insight-engine' && <InsightEngine />}
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   );
 }

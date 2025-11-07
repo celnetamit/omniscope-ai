@@ -9,9 +9,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   output: 'standalone',
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client'],
-  },
+  serverExternalPackages: ['@prisma/client'],
   images: {
     domains: ['omini.panoptical.org', 'bepy.panoptical.org'],
   },

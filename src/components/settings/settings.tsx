@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/components/auth/auth-provider';
+import { useTheme } from '@/components/theme/theme-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -40,10 +43,14 @@ import {
   RefreshCw,
   Monitor,
   Moon,
-  Sun
+  Sun,
+  CheckCircle
 } from 'lucide-react';
 
 export function Settings() {
+  const { user, updateProfile } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -53,7 +60,6 @@ export function Settings() {
   });
 
   const [preferences, setPreferences] = useState({
-    theme: 'system',
     language: 'en',
     timezone: 'UTC',
     autoSave: true,
@@ -66,6 +72,49 @@ export function Settings() {
     dataEncryption: true,
     auditLog: true
   });
+
+  const [profileData, setProfileData] = useState({
+    firstName: user?.name?.split(' ')[0] || '',
+    lastName: user?.name?.split(' ')[1] || '',
+    email: user?.email || '',
+    organization: user?.organization || ''
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.name?.split(' ')[0] || '',
+        lastName: user.name?.split(' ')[1] || '',
+        email: user.email || '',
+        organization: user.organization || ''
+      });
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    try {
+      await updateProfile({
+        name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+        email: profileData.email,
+        organization: profileData.organization
+      });
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      toast.error('Failed to update profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveSettings = () => {
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsLoading(false);
+      toast.success('Settings saved successfully');
+    }, 1000);
+  };
 
   return (
     <div className="space-y-6">
@@ -102,21 +151,55 @@ export function Settings() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="John" />
+                  <Input 
+                    id="firstName" 
+                    value={profileData.firstName}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                    disabled={isLoading}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Doe" />
+                  <Input 
+                    id="lastName" 
+                    value={profileData.lastName}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                    disabled={isLoading}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={profileData.email}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                  disabled={isLoading}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="organization">Organization</Label>
-                <Input id="organization" defaultValue="Research Institute" />
+                <Input 
+                  id="organization" 
+                  value={profileData.organization}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, organization: e.target.value }))}
+                  disabled={isLoading}
+                />
               </div>
+              <Button onClick={handleSaveProfile} disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Save Profile
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
 
@@ -133,9 +216,7 @@ export function Settings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Theme</Label>
-                <Select value={preferences.theme} onValueChange={(value) => 
-                  setPreferences(prev => ({ ...prev, theme: value }))
-                }>
+                <Select value={theme} onValueChange={setTheme}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -561,9 +642,18 @@ export function Settings() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button>
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
+        <Button onClick={handleSaveSettings} disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </>
+          )}
         </Button>
       </div>
     </div>

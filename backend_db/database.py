@@ -3,7 +3,7 @@ Database configuration and session management for OmniScope AI Backend
 """
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from .models import Base
@@ -59,7 +59,7 @@ def init_database():
     # Test database connection
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         print("✅ Database connection test successful")
     except Exception as e:
