@@ -1,0 +1,69 @@
+version: '3.8'
+
+# Docker Compose configuration for local development
+# This file includes only the infrastructure services (PostgreSQL, Redis, RabbitMQ)
+# Run the frontend and backend locally for faster development
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: omniscope-postgres-dev
+    environment:
+      POSTGRES_USER: omniscope
+      POSTGRES_PASSWORD: omniscope_password
+      POSTGRES_DB: omniscope_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./prisma/migrations/init_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omniscope"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: omniscope-redis-dev
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # RabbitMQ Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: omniscope-rabbitmq-dev
+    environment:
+      RABBITMQ_DEFAULT_USER: omniscope
+      RABBITMQ_DEFAULT_PASS: omniscope_password
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI (http://localhost:15672)
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  rabbitmq_dev_data:
+    driver: local

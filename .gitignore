@@ -46,4 +46,21 @@ dev.log
 test
 prompt
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+db/
+!backend_db/
+
 server.log

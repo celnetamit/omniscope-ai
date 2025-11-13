@@ -1,0 +1,414 @@
+openapi: 3.0.3
+info:
+  title: OmniScope AI API
+  description: Comprehensive multi-omics data analysis platform with advanced ML, collaboration, and visualization capabilities
+  version: 1.0.0
+  contact:
+    name: OmniScope AI Support
+    email: api-support@omniscope.ai
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8001
+    description: Development server
+  - url: https://api.omniscope.ai
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Collaboration
+    description: Real-time collaborative workspaces
+  - name: ML Framework
+    description: Advanced machine learning capabilities
+  - name: Visualization
+    description: 3D visualization engine
+  - name: Integration Hub
+    description: External database integrations
+  - name: Reports
+    description: Automated report generation
+  - name: Statistics
+    description: Advanced statistical analysis
+  - name: Processing
+    description: Distributed processing cluster
+  - name: Literature
+    description: AI-powered literature mining
+  - name: Plugins
+    description: Custom plugin system
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+            timestamp:
+              type: string
+              format: date-time
+            request_id:
+              type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+
+    Workspace:
+      type: object
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+        members:
+          type: array
+          items:
+            type: object
+        pipeline_state:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    MLModel:
+      type: object
+      properties:
+        model_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [automl, deep_learning, ensemble]
+        accuracy:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                name:
+                  type: string
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/collaboration/workspace/create:
+    post:
+      tags:
+        - Collaboration
+      summary: Create workspace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                initial_pipeline:
+                  type: object
+      responses:
+        '201':
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+  /api/ml/automl/train:
+    post:
+      tags:
+        - ML Framework
+      summary: Start AutoML training
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - dataset_id
+                - target_column
+              properties:
+                dataset_id:
+                  type: string
+                  format: uuid
+                target_column:
+                  type: string
+                feature_columns:
+                  type: array
+                  items:
+                    type: string
+                task_type:
+                  type: string
+                  enum: [classification, regression]
+                time_limit:
+                  type: integer
+      responses:
+        '202':
+          description: Training started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  status_url:
+                    type: string
+
+  /api/ml/models/{model_id}/explain:
+    get:
+      tags:
+        - ML Framework
+      summary: Get model explanation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: method
+          in: query
+          schema:
+            type: string
+            enum: [shap, lime]
+      responses:
+        '200':
+          description: Model explanation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  model_id:
+                    type: string
+                  method:
+                    type: string
+                  feature_importance:
+                    type: object
+
+  /api/visualization/protein/load:
+    post:
+      tags:
+        - Visualization
+      summary: Load protein structure
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pdb_id
+              properties:
+                pdb_id:
+                  type: string
+                source:
+                  type: string
+      responses:
+        '200':
+          description: Protein structure loaded
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/reports/generate:
+    post:
+      tags:
+        - Reports
+      summary: Generate report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - format
+              properties:
+                title:
+                  type: string
+                template_id:
+                  type: string
+                format:
+                  type: string
+                  enum: [pdf, docx, latex]
+                data_sources:
+                  type: object
+      responses:
+        '202':
+          description: Report generation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_id:
+                    type: string
+                  status:
+                    type: string
+
+  /api/plugins/marketplace:
+    get:
+      tags:
+        - Plugins
+      summary: List marketplace plugins
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plugin list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer

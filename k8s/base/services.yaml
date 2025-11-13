@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omniscope-backend
+  namespace: omniscope
+  labels:
+    app: omniscope
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8001
+    targetPort: 8001
+    protocol: TCP
+    name: http
+  selector:
+    app: omniscope
+    component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omniscope-frontend
+  namespace: omniscope
+  labels:
+    app: omniscope
+    component: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: omniscope
+    component: frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: omniscope
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: omniscope
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: redis

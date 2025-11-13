@@ -1,0 +1,14 @@
+artifact_uri: /home/itb-09/Downloads/workspace-3/mlruns/test_metrics_1763013554/5be477b42ff747b0b55094287cb2f6c6/artifacts
+end_time: 1763013554381
+entry_point_name: ''
+experiment_id: '194255624355626314'
+lifecycle_stage: active
+run_id: 5be477b42ff747b0b55094287cb2f6c6
+run_name: test_run
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1763013554375
+status: 3
+tags: []
+user_id: itb-09

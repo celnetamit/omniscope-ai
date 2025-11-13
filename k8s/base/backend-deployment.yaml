@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omniscope-backend
+  namespace: omniscope
+  labels:
+    app: omniscope
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: omniscope
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: omniscope
+        component: backend
+    spec:
+      containers:
+      - name: backend
+        image: omniscope/backend:latest
+        ports:
+        - containerPort: 8001
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: omniscope-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: omniscope-config
+              key: redis-url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: omniscope-secrets
+              key: jwt-secret
+        - name: ENVIRONMENT
+          value: "production"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: omniscope-data-pvc

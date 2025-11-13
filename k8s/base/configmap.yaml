@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omniscope-config
+  namespace: omniscope
+data:
+  api-url: "https://api.omniscope.ai"
+  websocket-url: "wss://api.omniscope.ai/socket.io"
+  redis-url: "redis://redis:6379"
+  postgres-host: "postgres"
+  postgres-port: "5432"
+  postgres-database: "omniscope"
+  log-level: "info"
+  max-upload-size: "100MB"
+  session-timeout: "3600"
+  enable-mfa: "true"
+  enable-audit-log: "true"

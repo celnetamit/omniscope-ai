@@ -1,0 +1,28 @@
+{
+  "name": "correlation_analyzer",
+  "version": "1.0.0",
+  "author": "OmniScope Team",
+  "author_email": "team@omniscope.ai",
+  "description": "Calculates correlation matrices and identifies significant correlations",
+  "language": "r",
+  "entry_point": "correlation_analyzer.R",
+  "category": "analysis",
+  "tags": ["correlation", "statistics", "analysis"],
+  "extension_points": ["analysis"],
+  "dependencies": ["jsonlite"],
+  "permissions": ["read_data"],
+  "config": {
+    "method": {
+      "type": "string",
+      "default": "pearson",
+      "description": "Correlation method (pearson, spearman, kendall)",
+      "options": ["pearson", "spearman", "kendall"]
+    },
+    "threshold": {
+      "type": "number",
+      "default": 0.7,
+      "description": "Threshold for significant correlations"
+    }
+  },
+  "min_platform_version": "1.0.0"
+}

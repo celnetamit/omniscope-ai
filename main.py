@@ -21,6 +21,39 @@ from modules.the_weaver import router as the_weaver_router
 from modules.the_crucible import router as the_crucible_router
 from modules.the_insight_engine import router as the_insight_engine_router
 
+# Import authentication and security routers
+from modules.auth_module import router as auth_router
+from modules.rbac_module import router as rbac_router
+from modules.audit_module import router as audit_router
+from modules.anonymization_module import router as anonymization_router
+
+# Import collaboration module
+from modules.collaboration_module import router as collaboration_router, socket_app
+
+# Import ML framework module
+from modules.ml_framework import router as ml_framework_router
+
+# Import visualization module
+from backend_db.visualization import router as visualization_router
+
+# Import integration hub module
+from modules.integration_hub_module import router as integration_hub_router
+
+# Import report generator module
+from modules.report_generator import router as report_generator_router
+
+# Import statistical analysis module
+from modules.statistical_analysis_module import router as statistical_analysis_router
+
+# Import distributed processing module
+from modules.distributed_processing_module import router as distributed_processing_router
+
+# Import literature mining module
+from modules.literature_mining_module import router as literature_mining_router
+
+# Import plugin module
+from modules.plugin_module import router as plugin_router
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -30,6 +63,16 @@ async def lifespan(app: FastAPI):
     try:
         init_database()
         print("🗄️ Database initialized successfully")
+        
+        # Initialize default roles
+        from backend_db.database import SessionLocal
+        from backend_db.rbac import RBACService
+        db = SessionLocal()
+        try:
+            RBACService.create_default_roles(db)
+            print("🔐 Default roles initialized successfully")
+        finally:
+            db.close()
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         raise
@@ -92,6 +135,81 @@ app.include_router(
     prefix="/api/results", 
     tags=["The Insight Engine - Biomarker Analysis"]
 )
+
+# Include authentication and security routers
+app.include_router(
+    auth_router,
+    prefix="/api/auth",
+    tags=["Authentication"]
+)
+
+app.include_router(
+    rbac_router,
+    prefix="/api/rbac",
+    tags=["Role-Based Access Control"]
+)
+
+app.include_router(
+    audit_router,
+    prefix="/api/audit",
+    tags=["Audit Logs"]
+)
+
+app.include_router(
+    anonymization_router,
+    prefix="/api/anonymization",
+    tags=["Data Anonymization"]
+)
+
+app.include_router(
+    collaboration_router,
+    prefix="/api/collaboration",
+    tags=["Real-time Collaboration"]
+)
+
+app.include_router(
+    ml_framework_router,
+    prefix="/api/ml",
+    tags=["Advanced ML Framework"]
+)
+
+app.include_router(
+    visualization_router,
+    tags=["3D Visualization Engine"]
+)
+
+app.include_router(
+    integration_hub_router,
+    tags=["External Database Integration Hub"]
+)
+
+app.include_router(
+    report_generator_router,
+    tags=["Automated Report Generator"]
+)
+
+app.include_router(
+    statistical_analysis_router,
+    tags=["Advanced Statistical Analysis"]
+)
+
+app.include_router(
+    distributed_processing_router,
+    tags=["Distributed Processing Cluster"]
+)
+
+app.include_router(
+    literature_mining_router,
+    tags=["AI-Powered Literature Mining"]
+)
+
+app.include_router(
+    plugin_router,
+    tags=["Custom Plugin System"]
+)
+
+# Mount Socket.IO app for WebSocket connections
+app.mount("/socket.io", socket_app)
 
 # Root endpoint
 @app.get("/")

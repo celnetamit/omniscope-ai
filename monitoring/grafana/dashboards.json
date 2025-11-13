@@ -1,0 +1,237 @@
+{
+  "omniscope_overview": {
+    "dashboard": {
+      "title": "OmniScope AI - Overview",
+      "tags": ["omniscope", "overview"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{namespace=\"omniscope\"}[5m])",
+              "legendFormat": "{{pod}} - {{method}} {{endpoint}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Error Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{namespace=\"omniscope\",status=~\"5..\"}[5m])",
+              "legendFormat": "{{pod}} - {{status}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Response Time (p95)",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{namespace=\"omniscope\"}[5m]))",
+              "legendFormat": "{{pod}} - {{endpoint}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Active Users",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "active_users_total",
+              "legendFormat": "Active Users"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "CPU Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(container_cpu_usage_seconds_total{namespace=\"omniscope\"}[5m])",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Memory Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "container_memory_usage_bytes{namespace=\"omniscope\"}",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "ml_training": {
+    "dashboard": {
+      "title": "OmniScope AI - ML Training",
+      "tags": ["omniscope", "ml"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Active Training Jobs",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "ml_training_jobs_active",
+              "legendFormat": "Active Jobs"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Training Duration",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "ml_training_duration_seconds",
+              "legendFormat": "{{model_type}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Model Accuracy",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "ml_model_accuracy",
+              "legendFormat": "{{model_id}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "GPU Utilization",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "gpu_utilization_percent",
+              "legendFormat": "GPU {{gpu_id}}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "collaboration": {
+    "dashboard": {
+      "title": "OmniScope AI - Collaboration",
+      "tags": ["omniscope", "collaboration"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Active Workspaces",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "collaboration_active_workspaces",
+              "legendFormat": "Active Workspaces"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "WebSocket Connections",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "websocket_connections_active",
+              "legendFormat": "Active Connections"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Message Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(websocket_messages_total[5m])",
+              "legendFormat": "{{message_type}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Sync Latency",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "collaboration_sync_latency_seconds",
+              "legendFormat": "p95"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "database": {
+    "dashboard": {
+      "title": "OmniScope AI - Database",
+      "tags": ["omniscope", "database"],
+      "panels": [
+        {
+          "id": 1,
+          "title": "Connection Pool Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "pg_stat_database_numbackends / pg_settings_max_connections",
+              "legendFormat": "Connection Usage"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Query Duration",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(pg_stat_statements_mean_time_seconds[5m])",
+              "legendFormat": "{{query}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Transaction Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(pg_stat_database_xact_commit[5m])",
+              "legendFormat": "Commits"
+            },
+            {
+              "expr": "rate(pg_stat_database_xact_rollback[5m])",
+              "legendFormat": "Rollbacks"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Cache Hit Ratio",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_read)",
+              "legendFormat": "Cache Hit Ratio"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

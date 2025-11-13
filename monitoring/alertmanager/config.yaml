@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'alerts@omniscope.ai'
+      smtp_auth_username: 'alerts@omniscope.ai'
+      smtp_auth_password: 'CHANGE_ME'
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+    # Templates for notifications
+    templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+
+    # Route tree
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'default'
+      routes:
+      # Critical alerts go to PagerDuty and Slack
+      - match:
+          severity: critical
+        receiver: 'critical-alerts'
+        continue: true
+      
+      # Warning alerts go to Slack only
+      - match:
+          severity: warning
+        receiver: 'warning-alerts'
+      
+      # Database alerts
+      - match:
+          component: database
+        receiver: 'database-team'
+      
+      # ML training alerts
+      - match:
+          component: ml
+        receiver: 'ml-team'
+
+    # Inhibition rules
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'cluster', 'service']
+
+    # Receivers
+    receivers:
+    - name: 'default'
+      email_configs:
+      - to: 'devops@omniscope.ai'
+        headers:
+          Subject: '[OmniScope] {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.default.html" . }}'
+
+    - name: 'critical-alerts'
+      pagerduty_configs:
+      - service_key: 'YOUR_PAGERDUTY_KEY'
+        description: '{{ .GroupLabels.alertname }}'
+      slack_configs:
+      - channel: '#alerts-critical'
+        title: '🚨 Critical Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+      email_configs:
+      - to: 'oncall@omniscope.ai'
+        headers:
+          Subject: '🚨 [CRITICAL] {{ .GroupLabels.alertname }}'
+
+    - name: 'warning-alerts'
+      slack_configs:
+      - channel: '#alerts-warning'
+        title: '⚠️ Warning Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+    - name: 'database-team'
+      email_configs:
+      - to: 'database-team@omniscope.ai'
+        headers:
+          Subject: '[Database] {{ .GroupLabels.alertname }}'
+      slack_configs:
+      - channel: '#database-alerts'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+    - name: 'ml-team'
+      email_configs:
+      - to: 'ml-team@omniscope.ai'
+        headers:
+          Subject: '[ML] {{ .GroupLabels.alertname }}'
+      slack_configs:
+      - channel: '#ml-alerts'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-templates
+  namespace: monitoring
+data:
+  default.tmpl: |
+    {{ define "email.default.html" }}
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; }
+        .alert { padding: 10px; margin: 10px 0; border-left: 4px solid; }
+        .critical { border-color: #d32f2f; background-color: #ffebee; }
+        .warning { border-color: #f57c00; background-color: #fff3e0; }
+        .info { border-color: #1976d2; background-color: #e3f2fd; }
+      </style>
+    </head>
+    <body>
+      <h2>OmniScope AI Alert</h2>
+      {{ range .Alerts }}
+      <div class="alert {{ .Labels.severity }}">
+        <h3>{{ .Labels.alertname }}</h3>
+        <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
+        <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+        <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+        <p><strong>Started:</strong> {{ .StartsAt }}</p>
+        {{ if .EndsAt }}
+        <p><strong>Ended:</strong> {{ .EndsAt }}</p>
+        {{ end }}
+      </div>
+      {{ end }}
+    </body>
+    </html>
+    {{ end }}

@@ -2,7 +2,7 @@
 
 ## 📋 **Deployment Overview**
 
-- **Frontend Domain**: https://omini.panoptical.org
+- **Frontend Domain**: https://omics.panoptical.org
 - **Backend Domain**: https://bepy.panoptical.org
 - **Deployment Platform**: Coolify (coolify.panoptical.org)
 - **Repository**: GitHub
@@ -11,7 +11,7 @@
 
 1. **GitHub Account** with repository access
 2. **Coolify Access** at coolify.panoptical.org
-3. **Domain Configuration** for omini.panoptical.org and bepy.panoptical.org
+3. **Domain Configuration** for omics.panoptical.org and bepy.panoptical.org
 
 ## 📦 **Step-by-Step Deployment**
 
@@ -25,7 +25,7 @@
    git commit -m "Initial commit: OmniScope AI platform"
    
    # Add GitHub remote
-   git remote add origin https://github.com/celnetamit/omniscope-ai.git
+   git remote add origin 
    git branch -M main
    git push -u origin main
    ```
@@ -42,7 +42,7 @@
    - Click "New Application"
    - Choose "GitHub Repository"
    - Select your repository: `celnetamit/omniscope-ai`
-   - Branch: `main`
+   - Branch: `main`https://github.com/celnetamit/omniscope-ai.git
 
 3. **Configure Backend Application**:
    ```json
@@ -65,7 +65,7 @@
 
 6. **Deploy Backend**: Click "Deploy"
 
-### **Step 3: Deploy Frontend (omini.panoptical.org)**
+### **Step 3: Deploy Frontend (omics.panoptical.org)**
 
 1. **Create Second Application** in Coolify:
    - Same repository: `celnetamit/omniscope-ai`
@@ -76,13 +76,13 @@
    Name: omniscope-frontend
    Port: 3000
    Dockerfile: Dockerfile
-   Domain: omini.panoptical.org
+   Domain: omics.panoptical.org
    ```
 
 3. **Environment Variables**:
    ```
    NODE_ENV=production
-   NEXTAUTH_URL=https://omini.panoptical.org
+   NEXTAUTH_URL=https://omics.panoptical.org
    NEXT_PUBLIC_API_URL=https://bepy.panoptical.org
    DATABASE_URL=file:./db/production.db
    NEXTAUTH_SECRET=your-secure-secret-key-here
@@ -116,14 +116,14 @@ curl https://bepy.panoptical.org/docs
 ### **Check Frontend Deployment**:
 ```bash
 # Health check
-curl https://omini.panoptical.org/api/health
+curl https://omics.panoptical.org/api/health
 
 # Main application
-curl https://omini.panoptical.org
+curl https://omics.panoptical.org
 ```
 
 ### **Test Integration**:
-1. Visit https://omini.panoptical.org
+1. Visit https://omics.panoptical.org
 2. Check that all modules load correctly
 3. Test file upload functionality
 4. Verify backend API calls work
@@ -176,7 +176,7 @@ git push origin main
 ## 📊 **Monitoring**
 
 ### **Health Endpoints**:
-- **Frontend**: https://omini.panoptical.org/api/health
+- **Frontend**: https://omics.panoptical.org/api/health
 - **Backend**: https://bepy.panoptical.org/health
 
 ### **Application Monitoring**:
@@ -205,7 +205,7 @@ git push origin main
 
 - [ ] GitHub repository created and pushed
 - [ ] Backend deployed at bepy.panoptical.org
-- [ ] Frontend deployed at omini.panoptical.org
+- [ ] Frontend deployed at omics.panoptical.org
 - [ ] SSL certificates configured
 - [ ] Environment variables set correctly
 - [ ] Health checks passing
@@ -235,7 +235,7 @@ Once all steps are completed:
    - Help system functional
 
 **Your OmniScope AI platform is now live at:**
-- **🌐 Frontend**: https://omini.panoptical.org
+- **🌐 Frontend**: https://omics.panoptical.org
 - **🔧 Backend**: https://bepy.panoptical.org
 
 Ready for production use! 🎉

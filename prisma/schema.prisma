@@ -1,32 +1,172 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// Users and Authentication
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String            @id @default(uuid())
+  email         String            @unique
+  passwordHash  String?           @map("password_hash")
+  name          String?
+  mfaEnabled    Boolean           @default(false) @map("mfa_enabled")
+  mfaSecret     String?           @map("mfa_secret")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  
+  // Relations
+  userRoles     UserRole[]
+  ownedWorkspaces Workspace[]     @relation("WorkspaceOwner")
+  workspaceMembers WorkspaceMember[]
+  mlModels      MLModel[]
+  reports       Report[]
+  auditLogs     AuditLog[]
+  
+  @@index([email])
+  @@map("users")
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Role {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  
+  // Relations
+  userRoles   UserRole[]
+  
+  @@index([name])
+  @@map("roles")
+}
+
+model UserRole {
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@id([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+// Collaboration
+model Workspace {
+  id            String            @id @default(uuid())
+  name          String
+  ownerId       String            @map("owner_id")
+  pipelineState Json?             @map("pipeline_state")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  
+  // Relations
+  owner         User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       WorkspaceMember[]
+  
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId    String   @map("workspace_id")
+  userId         String   @map("user_id")
+  role           String
+  cursorPosition Json?    @map("cursor_position")
+  lastSeen       DateTime? @map("last_seen")
+  
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@id([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+// ML Models
+model MLModel {
+  id                String   @id @default(uuid())
+  name              String
+  type              String
+  architecture      String?
+  hyperparameters   Json?
+  trainingConfig    Json?    @map("training_config")
+  metrics           Json?
+  artifactsPath     String?  @map("artifacts_path")
+  createdBy         String   @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  creator           User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  
+  @@index([createdBy])
+  @@index([type])
+  @@index([createdAt])
+  @@map("ml_models")
+}
+
+// Reports
+model Report {
+  id          String   @id @default(uuid())
+  title       String
+  templateId  String?  @map("template_id")
+  content     Json?
+  format      String
+  filePath    String?  @map("file_path")
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  creator     User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+// Plugins
+model Plugin {
+  id          String    @id @default(uuid())
+  name        String
+  version     String
+  author      String?
+  description String?
+  entryPoint  String    @map("entry_point")
+  enabled     Boolean   @default(false)
+  installedAt DateTime  @default(now()) @map("installed_at")
+  
+  @@index([name])
+  @@index([enabled])
+  @@map("plugins")
+}
+
+// Audit Logs
+model AuditLog {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+  userId      String?  @map("user_id")
+  action      String
+  resource    String
+  resourceId  String?  @map("resource_id")
+  ipAddress   String?  @map("ip_address")
+  result      String
+  details     Json?
+  
+  // Relations
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([timestamp])
+  @@index([action])
+  @@index([resource])
+  @@map("audit_logs")
 }

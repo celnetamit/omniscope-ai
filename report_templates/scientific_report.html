@@ -1,0 +1,70 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="metadata">
+    <p>Generated: {{ current_date() }}</p>
+    {% if data.authors %}
+    <p>Authors: {{ data.authors }}</p>
+    {% endif %}
+</div>
+
+{% for section in sections %}
+<section>
+    <h2>{{ section.title }}</h2>
+    
+    {% if section.content_type == 'text' %}
+        <p>{{ section.content or data.get(section.title.lower(), 'Content not provided.') }}</p>
+    
+    {% elif section.content_type == 'methods' %}
+        {% if methods %}
+        {{ methods | safe }}
+        {% else %}
+        <p>Methods section not available.</p>
+        {% endif %}
+    
+    {% elif section.content_type == 'table' %}
+        {% if data.tables and data.tables.get(section.title) %}
+        <table>
+            <thead>
+                <tr>
+                    {% for header in data.tables[section.title].headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.tables[section.title].rows %}
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    
+    {% elif section.content_type == 'figure' %}
+        {% if data.figures and data.figures.get(section.title) %}
+        <div class="figure">
+            <img src="{{ data.figures[section.title].path }}" alt="{{ section.title }}" style="max-width: 100%;">
+            <p class="figure-caption">Figure: {{ data.figures[section.title].caption }}</p>
+        </div>
+        {% endif %}
+    {% endif %}
+</section>
+{% endfor %}
+
+{% if citations %}
+<section>
+    <h2>References</h2>
+    <ol>
+        {% for citation in citations %}
+        <li>{{ citation }}</li>
+        {% endfor %}
+    </ol>
+</section>
+{% endif %}
+{% endblock %}

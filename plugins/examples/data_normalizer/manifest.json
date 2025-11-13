@@ -1,0 +1,23 @@
+{
+  "name": "data_normalizer",
+  "version": "1.0.0",
+  "author": "OmniScope Team",
+  "author_email": "team@omniscope.ai",
+  "description": "Normalizes numerical data using various methods (z-score, min-max, robust)",
+  "language": "python",
+  "entry_point": "data_normalizer.py",
+  "category": "preprocessing",
+  "tags": ["normalization", "preprocessing", "data-cleaning"],
+  "extension_points": ["preprocessing"],
+  "dependencies": ["numpy"],
+  "permissions": ["read_data", "write_data"],
+  "config": {
+    "method": {
+      "type": "string",
+      "default": "zscore",
+      "description": "Normalization method (zscore, minmax, robust)",
+      "options": ["zscore", "minmax", "robust"]
+    }
+  },
+  "min_platform_version": "1.0.0"
+}
